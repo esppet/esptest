@@ -441,6 +441,7 @@
     }
 
     function slideLine(line) {
+      const before = line.map(t => t ? t.value : null);
       const filtered = line.filter(t => t !== null);
       const merged = [];
       let lineScore = 0;
@@ -472,7 +473,9 @@
       }
 
       while (merged.length < SIZE) merged.push(null);
-      return { line: merged, score: lineScore, moved: JSON.stringify(line) !== JSON.stringify(merged.map(t => t ? { v: t.value, id: t.id } : null)) };
+      const after = merged.map(t => t ? t.value : null);
+      const moved = before.some((value, i) => value !== after[i]);
+      return { line: merged, score: lineScore, moved };
     }
 
     function getVector(direction) {
