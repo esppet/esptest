@@ -244,10 +244,192 @@
       font-family: inherit;
       font-size: 12px;
     }
+
+    .user-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    .user-bar .player {
+      font-weight: 700;
+    }
+
+    .user-bar button,
+    .google-btn {
+      background: #fff;
+      color: var(--text-dark);
+      border: 1px solid #d8d0c4;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .google-btn img {
+      width: 18px;
+      height: 18px;
+    }
+
+    .auth-screen,
+    .username-screen,
+    .setup-screen {
+      width: min(500px, 100%);
+      background: #fff;
+      border-radius: 10px;
+      padding: 28px 24px;
+      box-shadow: 0 8px 24px rgba(119, 110, 101, 0.12);
+      text-align: center;
+    }
+
+    .auth-screen h2,
+    .username-screen h2,
+    .setup-screen h2 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .auth-screen p,
+    .username-screen p,
+    .setup-screen p,
+    .setup-screen ol {
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 18px;
+      text-align: left;
+    }
+
+    .setup-screen ol {
+      padding-left: 20px;
+    }
+
+    .username-form {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .username-form input {
+      flex: 1;
+      border: 1px solid #d8d0c4;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 15px;
+    }
+
+    .form-error {
+      color: #c0392b;
+      font-size: 13px;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
+    .leaderboard {
+      margin-top: 24px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 4px 16px rgba(119, 110, 101, 0.08);
+    }
+
+    .leaderboard h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .leaderboard-list {
+      list-style: none;
+      display: grid;
+      gap: 8px;
+    }
+
+    .leaderboard-list li {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .leaderboard-list li.you {
+      outline: 2px solid var(--accent);
+    }
+
+    .leaderboard-list .rank {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .leaderboard-list .name {
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .leaderboard-empty {
+      font-size: 14px;
+      opacity: 0.7;
+      text-align: center;
+      padding: 12px 0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    #app.game-locked .game-wrapper,
+    #app.game-locked .controls,
+    #app.game-locked .leaderboard {
+      pointer-events: none;
+      opacity: 0.45;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div id="setup-screen" class="setup-screen hidden">
+    <h2>Almost ready</h2>
+    <p>This game needs a free Firebase project for Google login and the scoreboard. After you paste your config into <strong>firebase-config.js</strong> and push to GitHub, reload this page.</p>
+    <ol>
+      <li>Create a project at <a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase Console</a></li>
+      <li>Enable Google sign-in under Authentication</li>
+      <li>Create a Firestore database</li>
+      <li>Copy your web app config into <strong>firebase-config.js</strong></li>
+      <li>Add <strong>esppet.github.io</strong> under Authentication → Settings → Authorized domains</li>
+    </ol>
+  </div>
+
+  <div id="auth-screen" class="auth-screen hidden">
+    <h2>2048</h2>
+    <p>Sign in with Google to play and appear on the scoreboard.</p>
+    <button id="google-sign-in" class="google-btn" type="button">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
+      Sign in with Google
+    </button>
+    <div class="form-error" id="auth-error"></div>
+  </div>
+
+  <div id="username-screen" class="username-screen hidden">
+    <h2>Choose a username</h2>
+    <p>Pick a unique name for the scoreboard. Letters, numbers, and underscores only.</p>
+    <form id="username-form" class="username-form">
+      <input id="username-input" type="text" maxlength="16" placeholder="your_name" autocomplete="username" required>
+      <button type="submit">Save</button>
+    </form>
+    <div class="form-error" id="username-error"></div>
+  </div>
+
+  <div id="app" class="container hidden game-locked">
+    <div class="user-bar">
+      <div class="player">Playing as <span id="player-name">...</span></div>
+      <button id="sign-out" type="button">Sign out</button>
+    </div>
+
     <header>
       <div class="title-block">
         <h1>2048</h1>
@@ -294,23 +476,266 @@
       </div>
     </div>
 
-    <footer>Open <strong>2048.html</strong> in any modern web browser to play.</footer>
+    <section class="leaderboard">
+      <h3>Top scores</h3>
+      <ul id="leaderboard-list" class="leaderboard-list"></ul>
+      <div id="leaderboard-empty" class="leaderboard-empty hidden">No scores yet. Be the first!</div>
+    </section>
+
+    <footer>Play online at <strong>esppet.github.io/esptest</strong></footer>
   </div>
+
+  <script src="firebase-config.js"></script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      onAuthStateChanged,
+      signInWithPopup,
+      signOut
+    } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+    import {
+      addDoc,
+      collection,
+      doc,
+      getDoc,
+      getDocs,
+      getFirestore,
+      limit,
+      orderBy,
+      query,
+      runTransaction,
+      serverTimestamp,
+      updateDoc
+    } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
+
+    const config = window.FIREBASE_CONFIG || {};
+    const configReady = config.apiKey && !config.apiKey.includes('PASTE_YOUR');
+
+    const setupScreen = document.getElementById('setup-screen');
+    const authScreen = document.getElementById('auth-screen');
+    const usernameScreen = document.getElementById('username-screen');
+    const app = document.getElementById('app');
+    const authError = document.getElementById('auth-error');
+    const usernameError = document.getElementById('username-error');
+    const playerNameEl = document.getElementById('player-name');
+    const leaderboardList = document.getElementById('leaderboard-list');
+    const leaderboardEmpty = document.getElementById('leaderboard-empty');
+
+    let firebaseApp = null;
+    let auth = null;
+    let db = null;
+    let currentUser = null;
+    let currentProfile = null;
+    let gameReady = false;
+    window.gameReady = false;
+
+    window.firebaseServices = { ready: false };
+
+    function showOnly(screen) {
+      [setupScreen, authScreen, usernameScreen, app].forEach(el => el.classList.add('hidden'));
+      screen.classList.remove('hidden');
+    }
+
+    function normalizeUsername(value) {
+      return value.trim().toLowerCase();
+    }
+
+    function isValidUsername(value) {
+      return /^[a-z0-9_]{3,16}$/.test(value);
+    }
+
+    async function loadProfile(uid) {
+      const snap = await getDoc(doc(db, 'users', uid));
+      return snap.exists() ? snap.data() : null;
+    }
+
+    async function loadLeaderboard() {
+      const q = query(collection(db, 'users'), orderBy('bestScore', 'desc'), limit(10));
+      const snap = await getDocs(q);
+      const entries = snap.docs
+        .map(docSnap => docSnap.data())
+        .filter(entry => entry.username && entry.bestScore > 0);
+
+      leaderboardList.innerHTML = '';
+      if (!entries.length) {
+        leaderboardEmpty.classList.remove('hidden');
+        return;
+      }
+
+      leaderboardEmpty.classList.add('hidden');
+      entries.forEach((entry, index) => {
+        const li = document.createElement('li');
+        if (currentProfile && entry.username === currentProfile.username) {
+          li.classList.add('you');
+        }
+        li.innerHTML = `
+          <span class="rank">${index + 1}</span>
+          <span class="name">${entry.username}</span>
+          <span class="score">${entry.bestScore}</span>
+        `;
+        leaderboardList.appendChild(li);
+      });
+    }
+
+    async function saveUsername(username) {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      await runTransaction(db, async (transaction) => {
+        const usernameRef = doc(db, 'usernames', username);
+        const userRef = doc(db, 'users', user.uid);
+        const usernameSnap = await transaction.get(usernameRef);
+        const userSnap = await transaction.get(userRef);
+
+        if (usernameSnap.exists()) {
+          throw new Error('That username is already taken.');
+        }
+
+        if (userSnap.exists() && userSnap.data().username) {
+          throw new Error('You already have a username.');
+        }
+
+        transaction.set(usernameRef, { uid: user.uid });
+        transaction.set(userRef, {
+          username,
+          email: user.email || '',
+          bestScore: 0,
+          createdAt: serverTimestamp()
+        }, { merge: true });
+      });
+    }
+
+    window.submitScore = async function submitScore(scoreValue) {
+      if (!gameReady || !currentUser || !currentProfile || scoreValue <= 0) return;
+
+      await addDoc(collection(db, 'scores'), {
+        uid: currentUser.uid,
+        username: currentProfile.username,
+        score: scoreValue,
+        playedAt: serverTimestamp()
+      });
+
+      if (scoreValue > (currentProfile.bestScore || 0)) {
+        await updateDoc(doc(db, 'users', currentUser.uid), { bestScore: scoreValue });
+        currentProfile.bestScore = scoreValue;
+        if (typeof window.setPersonalBest === 'function') {
+          window.setPersonalBest(scoreValue);
+        }
+      }
+
+      await loadLeaderboard();
+    };
+
+    async function startSession(user) {
+      currentUser = user;
+      currentProfile = await loadProfile(user.uid);
+
+      if (!currentProfile?.username) {
+        gameReady = false;
+        window.gameReady = false;
+        showOnly(usernameScreen);
+        return;
+      }
+
+      currentProfile.bestScore = currentProfile.bestScore || 0;
+      playerNameEl.textContent = currentProfile.username;
+      showOnly(app);
+      app.classList.remove('game-locked');
+      gameReady = true;
+      window.gameReady = true;
+
+      if (typeof window.setPersonalBest === 'function') {
+        window.setPersonalBest(currentProfile.bestScore);
+      }
+      if (typeof window.startGame === 'function') {
+        window.startGame();
+      }
+
+      await loadLeaderboard();
+    }
+
+    function initFirebase() {
+      if (!configReady) {
+        showOnly(setupScreen);
+        return;
+      }
+
+      firebaseApp = initializeApp(config);
+      auth = getAuth(firebaseApp);
+      db = getFirestore(firebaseApp);
+      window.firebaseServices = { ready: true, auth, db };
+      showOnly(authScreen);
+
+      document.getElementById('google-sign-in').addEventListener('click', async () => {
+        authError.textContent = '';
+        try {
+          await signInWithPopup(auth, new GoogleAuthProvider());
+        } catch (error) {
+          authError.textContent = error.message || 'Could not sign in.';
+        }
+      });
+
+      document.getElementById('sign-out').addEventListener('click', async () => {
+        await signOut(auth);
+      });
+
+      document.getElementById('username-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        usernameError.textContent = '';
+
+        const username = normalizeUsername(document.getElementById('username-input').value);
+        if (!isValidUsername(username)) {
+          usernameError.textContent = 'Use 3-16 characters: letters, numbers, or underscores.';
+          return;
+        }
+
+        try {
+          await saveUsername(username);
+          await startSession(auth.currentUser);
+        } catch (error) {
+          usernameError.textContent = error.message || 'Could not save username.';
+        }
+      });
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          currentUser = null;
+          currentProfile = null;
+          gameReady = false;
+          window.gameReady = false;
+          app.classList.add('game-locked');
+          showOnly(authScreen);
+          return;
+        }
+
+        try {
+          await startSession(user);
+        } catch (error) {
+          authError.textContent = error.message || 'Could not load your profile.';
+          showOnly(authScreen);
+        }
+      });
+    }
+
+    initFirebase();
+  </script>
 
   <script>
     const SIZE = 4;
-    const BEST_KEY = '2048-best-score';
 
     let grid = [];
     let tiles = [];
     let score = 0;
-    let best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
+    let best = 0;
     let won = false;
     let keepPlaying = false;
     let tileId = 0;
     let cellSize = 0;
     let gap = 12;
     let animating = false;
+    let gameInitialized = false;
 
     const gridBg = document.getElementById('grid-bg');
     const tileContainer = document.getElementById('tile-container');
@@ -321,16 +746,30 @@
     const winOverlay = document.getElementById('win-overlay');
 
     function init() {
+      if (gameInitialized) return;
+      gameInitialized = true;
+
       for (let i = 0; i < SIZE * SIZE; i++) {
         const cell = document.createElement('div');
         cell.className = 'cell';
         gridBg.appendChild(cell);
       }
-      bestEl.textContent = best;
-      newGame();
+
       window.addEventListener('resize', updateSizes);
       updateSizes();
+      newGame();
     }
+
+    window.startGame = function startGame() {
+      init();
+      bestEl.textContent = best;
+      newGame();
+    };
+
+    window.setPersonalBest = function setPersonalBest(value) {
+      best = value;
+      bestEl.textContent = best;
+    };
 
     function updateSizes() {
       const rect = gridContainer.getBoundingClientRect();
@@ -436,7 +875,6 @@
       if (score > best) {
         best = score;
         bestEl.textContent = best;
-        localStorage.setItem(BEST_KEY, best);
       }
     }
 
@@ -489,7 +927,7 @@
     }
 
     function move(direction) {
-      if (animating) return;
+      if (animating || !window.gameReady) return;
 
       const { rowMajor } = getVector(direction);
       const reverse = direction === 'down' || direction === 'right';
@@ -573,6 +1011,9 @@
 
         if (!canMove()) {
           gameOverOverlay.classList.add('visible');
+          if (typeof window.submitScore === 'function') {
+            window.submitScore(score);
+          }
         }
       }, 150);
     }
@@ -634,7 +1075,6 @@
       winOverlay.classList.remove('visible');
     });
 
-    init();
   </script>
 </body>
 </html>
