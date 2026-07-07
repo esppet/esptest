@@ -500,9 +500,9 @@
       collection,
       doc,
       getDoc,
-      getDocs,
       getFirestore,
       limit,
+      onSnapshot,
       orderBy,
       query,
       runTransaction,
@@ -529,6 +529,7 @@
     let currentUser = null;
     let currentProfile = null;
     let gameReady = false;
+    let leaderboardUnsubscribe = null;
     window.gameReady = false;
 
     window.firebaseServices = { ready: false };
@@ -551,13 +552,7 @@
       return snap.exists() ? snap.data() : null;
     }
 
-    async function loadLeaderboard() {
-      const q = query(collection(db, 'users'), orderBy('bestScore', 'desc'), limit(10));
-      const snap = await getDocs(q);
-      const entries = snap.docs
-        .map(docSnap => docSnap.data())
-        .filter(entry => entry.username && entry.bestScore > 0);
-
+    function renderLeaderboard(entries) {
       leaderboardList.innerHTML = '';
       if (!entries.length) {
         leaderboardEmpty.classList.remove('hidden');
@@ -578,6 +573,33 @@
         leaderboardList.appendChild(li);
       });
     }
+
+    function subscribeLeaderboard() {
+      if (leaderboardUnsubscribe) {
+        leaderboardUnsubscribe();
+        leaderboardUnsubscribe = null;
+      }
+
+      const q = query(collection(db, 'users'), orderBy('bestScore', 'desc'), limit(10));
+      leaderboardUnsubscribe = onSnapshot(q, (snap) => {
+        const entries = snap.docs
+          .map(docSnap => docSnap.data())
+          .filter(entry => entry.username && entry.bestScore > 0);
+        renderLeaderboard(entries);
+      });
+    }
+
+    window.updatePersonalBest = async function updatePersonalBest(scoreValue) {
+      if (!gameReady || !currentUser || !currentProfile || scoreValue <= 0) return;
+      if (scoreValue <= (currentProfile.bestScore || 0)) return;
+
+      await updateDoc(doc(db, 'users', currentUser.uid), { bestScore: scoreValue });
+      currentProfile.bestScore = scoreValue;
+
+      if (typeof window.setPersonalBest === 'function') {
+        window.setPersonalBest(scoreValue);
+      }
+    };
 
     async function saveUsername(username) {
       const user = auth.currentUser;
@@ -617,15 +639,7 @@
         playedAt: serverTimestamp()
       });
 
-      if (scoreValue > (currentProfile.bestScore || 0)) {
-        await updateDoc(doc(db, 'users', currentUser.uid), { bestScore: scoreValue });
-        currentProfile.bestScore = scoreValue;
-        if (typeof window.setPersonalBest === 'function') {
-          window.setPersonalBest(scoreValue);
-        }
-      }
-
-      await loadLeaderboard();
+      await window.updatePersonalBest(scoreValue);
     };
 
     async function startSession(user) {
@@ -653,7 +667,7 @@
         window.startGame();
       }
 
-      await loadLeaderboard();
+      subscribeLeaderboard();
     }
 
     function initFirebase() {
@@ -705,6 +719,10 @@
           currentProfile = null;
           gameReady = false;
           window.gameReady = false;
+          if (leaderboardUnsubscribe) {
+            leaderboardUnsubscribe();
+            leaderboardUnsubscribe = null;
+          }
           app.classList.add('game-locked');
           showOnly(authScreen);
           return;
@@ -875,6 +893,9 @@
       if (score > best) {
         best = score;
         bestEl.textContent = best;
+        if (typeof window.updatePersonalBest === 'function') {
+          window.updatePersonalBest(score);
+        }
       }
     }
 
