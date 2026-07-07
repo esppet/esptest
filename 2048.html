@@ -480,6 +480,7 @@
       <h3>Top scores</h3>
       <ul id="leaderboard-list" class="leaderboard-list"></ul>
       <div id="leaderboard-empty" class="leaderboard-empty hidden">No scores yet. Be the first!</div>
+      <div id="leaderboard-error" class="form-error hidden"></div>
     </section>
 
     <footer>Play online at <strong>esppet.github.io/esptest</strong></footer>
@@ -501,10 +502,7 @@
       doc,
       getDoc,
       getFirestore,
-      limit,
       onSnapshot,
-      orderBy,
-      query,
       runTransaction,
       serverTimestamp,
       updateDoc
@@ -522,6 +520,7 @@
     const playerNameEl = document.getElementById('player-name');
     const leaderboardList = document.getElementById('leaderboard-list');
     const leaderboardEmpty = document.getElementById('leaderboard-empty');
+    const leaderboardError = document.getElementById('leaderboard-error');
 
     let firebaseApp = null;
     let auth = null;
@@ -553,7 +552,10 @@
     }
 
     function renderLeaderboard(entries) {
+      leaderboardError.classList.add('hidden');
+      leaderboardError.textContent = '';
       leaderboardList.innerHTML = '';
+
       if (!entries.length) {
         leaderboardEmpty.classList.remove('hidden');
         return;
@@ -580,24 +582,43 @@
         leaderboardUnsubscribe = null;
       }
 
-      const q = query(collection(db, 'users'), orderBy('bestScore', 'desc'), limit(10));
-      leaderboardUnsubscribe = onSnapshot(q, (snap) => {
-        const entries = snap.docs
-          .map(docSnap => docSnap.data())
-          .filter(entry => entry.username && entry.bestScore > 0);
-        renderLeaderboard(entries);
-      });
+      leaderboardUnsubscribe = onSnapshot(
+        collection(db, 'users'),
+        (snap) => {
+          const entries = snap.docs
+            .map(docSnap => docSnap.data())
+            .filter(entry => entry.username && Number(entry.bestScore) > 0)
+            .sort((a, b) => Number(b.bestScore) - Number(a.bestScore))
+            .slice(0, 10);
+          renderLeaderboard(entries);
+        },
+        (error) => {
+          console.error('Leaderboard error:', error);
+          leaderboardList.innerHTML = '';
+          leaderboardEmpty.classList.add('hidden');
+          leaderboardError.textContent = 'Could not load scores. Please refresh the page.';
+          leaderboardError.classList.remove('hidden');
+        }
+      );
     }
 
     window.updatePersonalBest = async function updatePersonalBest(scoreValue) {
       if (!gameReady || !currentUser || !currentProfile || scoreValue <= 0) return;
-      if (scoreValue <= (currentProfile.bestScore || 0)) return;
 
-      await updateDoc(doc(db, 'users', currentUser.uid), { bestScore: scoreValue });
-      currentProfile.bestScore = scoreValue;
+      const bestScore = Math.floor(scoreValue);
+      if (bestScore <= (currentProfile.bestScore || 0)) return;
 
-      if (typeof window.setPersonalBest === 'function') {
-        window.setPersonalBest(scoreValue);
+      try {
+        await updateDoc(doc(db, 'users', currentUser.uid), { bestScore });
+        currentProfile.bestScore = bestScore;
+
+        if (typeof window.setPersonalBest === 'function') {
+          window.setPersonalBest(bestScore);
+        }
+      } catch (error) {
+        console.error('Could not save best score:', error);
+        leaderboardError.textContent = 'Could not save your score. Check your connection and try again.';
+        leaderboardError.classList.remove('hidden');
       }
     };
 
@@ -632,14 +653,22 @@
     window.submitScore = async function submitScore(scoreValue) {
       if (!gameReady || !currentUser || !currentProfile || scoreValue <= 0) return;
 
-      await addDoc(collection(db, 'scores'), {
-        uid: currentUser.uid,
-        username: currentProfile.username,
-        score: scoreValue,
-        playedAt: serverTimestamp()
-      });
+      const finalScore = Math.floor(scoreValue);
 
-      await window.updatePersonalBest(scoreValue);
+      try {
+        await addDoc(collection(db, 'scores'), {
+          uid: currentUser.uid,
+          username: currentProfile.username,
+          score: finalScore,
+          playedAt: serverTimestamp()
+        });
+
+        await window.updatePersonalBest(finalScore);
+      } catch (error) {
+        console.error('Could not submit score:', error);
+        leaderboardError.textContent = 'Could not save your score. Check your connection and try again.';
+        leaderboardError.classList.remove('hidden');
+      }
     };
 
     async function startSession(user) {
